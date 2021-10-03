@@ -63,7 +63,13 @@ struct threadqueue {
 //cinit(chan, val) chan = pipe_new(sizeof(val), )
 //#define lvchannel __attribute__((lvchannel))
 #define lvchannel(chan) chan
+#ifdef cread
+#undef cread
+#endif
 #define cread(ch, val) val = ch;
+#ifdef cwrite
+#undef cwrite
+#endif
 #define cwrite(ch, val) ch = val;
 //#define fifochannel(c)  c ##ktclist[50]; int c ##ktccount; int c ##ktctail; struct threadqueue  __attribute__((fifochannel)) c
 //# task if((void *__attribute__((task)))1)
