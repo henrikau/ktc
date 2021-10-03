@@ -1,0 +1,12 @@
+# -*- mode: sh -*-
+. /root/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true
+
+if [[ ! -e ~/.opam/config ]]; then
+   opam init -a
+fi
+# eval `opam config env`:
+CAML_LD_LIBRARY_PATH="/home/ktcuser/.opam/system/lib/stublibs:/usr/lib/ocaml/stublibs"; export CAML_LD_LIBRARY_PATH;
+MANPATH=":/home/ktcuser/.opam/system/man"; export MANPATH;
+PERL5LIB="/home/ktcuser/.opam/system/lib/perl5"; export PERL5LIB;
+OCAML_TOPLEVEL_PATH="/home/ktcuser/.opam/system/lib/toplevel"; export OCAML_TOPLEVEL_PATH;
+PATH="/home/ktcuser/app/bin:/home/ktcuser/.opam/system/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"; export PATH;
