@@ -80,6 +80,7 @@ sub processArguments {
     push @{$self->{KTCLIBSLOG}}, "$lib/liblogs.$self->{LIBEXT}";
     push @{$self->{KTCLIBSRASP}}, "$lib/libktcrasp.$self->{LIBEXT}";
     push @{$self->{KTCLIBFREERTOS}}, "$lib/libktcfree.$self->{LIBEXT}";
+    push @{$self->{KTCLIBPIPE}}, "$lib/libktcpipe.$self->{LIBEXT}";
     return $self;
 }
 
@@ -208,7 +209,7 @@ sub link_after_cil {
 		push @libs ;
 	}
 	else{
-		push @libs, "-lrt", "-lpthread";
+		push @libs, "-lrt", "-lpthread", "-";
 	}
 
 }
@@ -244,6 +245,7 @@ sub link_after_cil {
 		push @libs, @{$self->{KTCLIBFREERTOS}};
 	    }else{
             push @libs, @{$self->{KTCLIBS}};
+            push @libs, @{$self->{KTCLIBPIPE}};
 	    }
         }
         if ($self->{DARWIN}) {

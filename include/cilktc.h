@@ -54,26 +54,17 @@ struct threadqueue {
 	pthread_cond_t cond;
 };
 
+#define cread(chan, ptr)  pipe_pop(chan##_consumer, &ptr, 1)
+#define cwrite(chan, ptr) pipe_push(chan##_producer, &ptr, 1)
+#define cinit(chan, val) chan ##_pipe = pipe_new(sizeof(chan), 0); chan ##_consumer = pipe_consumer_new(chan##_pipe); chan##_producer = pipe_producer_new(chan##_pipe); pipe_free(chan##_pipe)
+#define nelem(chan) pipe_nelem(chan##_consumer)
+
+#define lvchannel __attribute__((lvchannel))
+#define fifochannel(chan) chan ; pipe_t* chan ##_pipe ; pipe_consumer_t* chan ##_consumer; pipe_producer_t* chan ##_producer  
+
 #define critical if((void *__attribute__((critical)))0)
 #define skipdelay if((void *__attribute__((next)))0) next()
 #define exec_child(x) if(x == 0)
-#define cread(chan, ptr)   if((void *__attribute__((read_block))) (sizeof(#chan) > &ptr)){sleep(0);}
-#define cwrite(chan, ptr) if((void *__attribute__((write_block))) (sizeof(#chan) > &ptr)){sleep(0);}
-//#define cinit(chan, val) int tempinitvarktc; if((void *__attribute__((init_block))) (sizeof(#chan) > &tempinitvarktc)){sleep(0);}
-//cinit(chan, val) chan = pipe_new(sizeof(val), )
-//#define lvchannel __attribute__((lvchannel))
-#define lvchannel(chan) chan
-#ifdef cread
-#undef cread
-#endif
-#define cread(ch, val) val = ch;
-#ifdef cwrite
-#undef cwrite
-#endif
-#define cwrite(ch, val) ch = val;
-//#define fifochannel(c)  c ##ktclist[50]; int c ##ktccount; int c ##ktctail; struct threadqueue  __attribute__((fifochannel)) c
-//# task if((void *__attribute__((task)))1)
-#define fifochannel(c) c; pipe_t* c ##pipe; pipe_consumer_t* c ##cons; pipe_producer_t* c ##pros;
 #define main(...) *dummyglobalvariable; int populatelist(int num){ if(num == 0){return 0;} qsort (list_dl, num, sizeof(int), compare_qsort); qsort (list_pr, num, sizeof(int), compare_qsort);return 1; } void main(__VA_ARGS__)
 #define aperiodic(val, ms)  runtime = val; deadline = val; period = val; ktc_set_sched(policy, runtime, period, deadline);setschedvar = 0;
 #define ms -3
