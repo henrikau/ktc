@@ -1,13 +1,10 @@
 #!/bin/bash
 cp $1 temp.c
-../bin/ktc --enable-ext0 --link $1 -w
-if [ $? = 0 ]; then 
-    rm *.dot
+of="${1%.c}"
+../bin/ktc --enable-ext0 --link $1 -w --verbose -lpthread
+mv a.out ${of}
+if [ $? = 0 ]; then
     mv temp.c $1
-    sudo ./a.out  
-else
-    rm *.dot
-    exit 0
+    sudo ./${of}
 fi
-rm ./a.out
-
+rm *.dot
