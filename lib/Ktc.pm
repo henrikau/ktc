@@ -81,6 +81,8 @@ sub processArguments {
     push @{$self->{KTCLIBSRASP}}, "$lib/libktcrasp.$self->{LIBEXT}";
     push @{$self->{KTCLIBFREERTOS}}, "$lib/libktcfree.$self->{LIBEXT}";
     push @{$self->{KTCLIBPIPE}}, "$lib/libktcpipe.$self->{LIBEXT}";
+    push @{$self->{KTCLIBAVTP}}, "$lib/libtimedc_avtp.$self->{LIBEXT}";
+    push @{$self->{KTCLIBAVTP}}, "$lib/libmrp.$self->{LIBEXT}";
     return $self;
 }
 
@@ -209,7 +211,7 @@ sub link_after_cil {
 		push @libs ;
 	}
 	else{
-		push @libs, "-lrt", "-lpthread", "-";
+		push @libs, "-lrt", "-lpthread", "-ltimedc_avtp", "-lmrp", "-";
 	}
 
 }
@@ -246,6 +248,7 @@ sub link_after_cil {
 	    }else{
             push @libs, @{$self->{KTCLIBS}};
             push @libs, @{$self->{KTCLIBPIPE}};
+            push @libs, @{$self->{KTCLIBAVTP}};
 	    }
         }
         if ($self->{DARWIN}) {
