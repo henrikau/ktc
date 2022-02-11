@@ -1,18 +1,8 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include<cilktc.h>
-#include<ktcpipe.h>
-
-#include <ifaddrs.h>
-#include <netdb.h>
+#include <cilktc.h>
 
 #include <timedc_avtp.h>
 #include "manifest.h"
-
-/*
- * To connect to docker-image to run second process:
- * sudo docker exec -it $(sudo docker ps|grep ktcbuild|awk '{print $NF}') /bin/bash --login
- */
 
 task reader()
 {
@@ -28,7 +18,7 @@ task reader()
 
 void main()
 {
-	nf_set_nic("lo");
+	nf_set_nic("eth0");
 	nf_verbose();
 	reader();
 }

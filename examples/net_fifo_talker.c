@@ -1,10 +1,5 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include<cilktc.h>
-#include<ktcpipe.h>
-
-#include <ifaddrs.h>
-#include <netdb.h>
+#include <cilktc.h>
 
 #include <timedc_avtp.h>
 #include "manifest.h"
@@ -26,7 +21,7 @@ task writer() {
 
 void main()
 {
-	nf_set_nic("lo");
+	nf_set_nic("eth0");
 	nf_verbose();
 	usleep(5000);
 	writer();
