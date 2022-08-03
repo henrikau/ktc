@@ -1,3 +1,10 @@
+/*
+ * Copyright 2022 SINTEF AS
+ *
+ * This Source Code Form is subject to the terms of the Mozilla
+ * Public License, v. 2.0. If a copy of the MPL was not distributed
+ * with this file, You can obtain one at https://mozilla.org/MPL/2.0/
+ */
 #pragma once
 #include <stdlib.h>
 #include <inttypes.h>
@@ -7,15 +14,24 @@
 #include <linux/if_ether.h>
 
 #include <srp/mrp_client.h>
+#include <ptp_getclock.h>
 
 /* --------------------------
- * Main TimedC values
+ * Main TimedC Macros
  */
-#define NETFIFO_RX(x) struct timedc_avtp * x ## _du = pdu_create_standalone(#x, 0, net_fifo_chans, ARRAY_SIZE(net_fifo_chans))
-#define NETFIFO_TX(x) struct timedc_avtp * x ## _du = pdu_create_standalone(#x, 1, net_fifo_chans, ARRAY_SIZE(net_fifo_chans))
+#define NETFIFO_RX(x) struct timedc_avtp * x ## _du = \
+		pdu_create_standalone(#x, 0, net_fifo_chans, \
+		ARRAY_SIZE(net_fifo_chans))
+#define NETFIFO_TX(x) struct timedc_avtp * x ## _du = \
+		pdu_create_standalone(#x, 1, net_fifo_chans, \
+		ARRAY_SIZE(net_fifo_chans))
 
 #define WRITE(x,v) pdu_send_now(x ## _du, v)
+#define WRITE_WAIT(x,v) pdu_send_now_wait(x ## _du, v)
 #define READ(x,v) pdu_read(x ## _du, v)
+#define READ_WAIT(x,v) pdu_read_wait(x ## _du, v)
+
+#define CLEANUP() nh_destroy_standalone()
 
 /* Deprecated
  *    - Use NETFIFO_(R|T)X instad
@@ -30,6 +46,18 @@
  * bit to low order 23)
  */
 #define DEFAULT_MCAST {0x01, 0x00, 0x5E, 0x00, 0x00, 0x00}
+#define CLASS_A_DEFAULT_WAIT_MS 1000
+#define CLASS_B_DEFAULT_WAIT_MS 50
+
+enum {
+	DEFAULT_CLASS_A_PRIO = 3,
+	DEFAULT_CLASS_B_PRIO = 2
+};
+
+enum stream_class {
+	CLASS_A,
+	CLASS_B
+};
 
 /**
  * struct net_fifo
@@ -51,6 +79,19 @@ struct net_fifo
 	 */
 	uint8_t dst[ETH_ALEN];
 	uint64_t stream_id;
+
+	/*
+	 * Indicate if stream should run as class A or B
+	 *
+	 * Will recover the actual PCP prio values from SRP, if run
+	 * without SRP, it will use default values (A:3, B:2)
+	 *
+	 * Note: when using WRITE_WAIT and READ_WAIT, thread will block
+	 * until capture_time + class_max_delay has passed.
+	 * For class A:  2ms
+	 *     class B: 50ms
+	 */
+	enum stream_class class;
 
 	/* Size of payload, 0..1500 bytes */
 	uint16_t size;
@@ -107,9 +148,15 @@ struct timedc_avtp;
 struct nethandler;
 
 int nf_set_nic(char *nic);
+void nf_keep_cstate();
 void nf_set_hmap_size(int sz);
 void nf_use_srp(void);
+void nf_use_ftrace(void);
+void nf_breakval(int break_us);
 void nf_verbose(void);
+void nf_use_termtag(const char *devpath);
+void nf_set_logfile(const char *logfile);
+void nf_log_delay(void);
 
 #define ARRAY_SIZE(x) (x != NULL ? sizeof(x) / sizeof(x[0]) : -1)
 
@@ -144,6 +191,7 @@ int nf_rx_create(char *name, struct net_fifo *arr, int arr_size);
  * @param nh nethandler container
  * @param dst destination address for this PDU
  * @param stream_id 64 bit unique value for the stream allotted to our channel.
+ * @param class: class this stream belongs to, required to set correct socket prio
  * @param sz: size of data to transmit
  *
  * @returns the new PDU or NULL upon failure.
@@ -151,6 +199,7 @@ int nf_rx_create(char *name, struct net_fifo *arr, int arr_size);
 struct timedc_avtp * pdu_create(struct nethandler *nh,
 				unsigned char *dst,
 				uint64_t stream_id,
+				enum stream_class class,
 				uint16_t sz);
 
 
@@ -225,6 +274,20 @@ int pdu_send(struct timedc_avtp *pdu);
 int pdu_send_now(struct timedc_avtp *du, void *data);
 
 /**
+ * pdu_send_now_wait - update and send PDU, and wait for class delay
+ *
+ * When using this function, caller will be blocked for 2ms or 50ms
+ * depending on class before continuing. This gives a synchronized wait
+ * approach to the semantics.
+ *
+ * @param pdu: data container to send
+ * @param data: new data to copy into field and send.
+ *
+ * @return 0 on success, negative on error
+ */
+int pdu_send_now_wait(struct timedc_avtp *du, void *data);
+
+/**
  * pdu_read : read data from incoming pipe attached to DU
  *
  * @param du: data container
@@ -235,6 +298,20 @@ int pdu_send_now(struct timedc_avtp *du, void *data);
 int pdu_read(struct timedc_avtp *du, void *data);
 
 /**
+ * pdu_read_wait : read data from incoming pipe attached to DU and wait for class delay
+ *
+ * When using this function, caller will be delayed until capture time +
+ * class delay has passed. This expects the clocks for both writer and
+ * reader to be synchronized properly.
+ *
+ * @param du: data container
+ * @param data: memory to store received data to
+ *
+ * @return bytes received or -1 on error
+ */
+int pdu_read_wait(struct timedc_avtp *du, void *data);
+
+/**
  * nh_init - initialize nethandler
  *
  * @param ifname: NIC to attach to
@@ -242,7 +319,7 @@ int pdu_read(struct timedc_avtp *du, void *data);
  *
  * @returns struct nethandler on success, NULL on error
  */
-struct nethandler * nh_init(char *ifname, size_t hmap_size);
+struct nethandler * nh_init(char *ifname, size_t hmap_size, const char *logfile);
 
 /**
  * nh_init_standalone - create a standalone instance of nethandler
@@ -309,6 +386,9 @@ int nh_std_cb(void *data, struct avtpdu_cshdr *du);
  * @returns
  */
 int nh_feed_pdu(struct nethandler *nh, struct avtpdu_cshdr *du);
+int nh_feed_pdu_ts(struct nethandler *nh, struct avtpdu_cshdr *du,
+		uint64_t rx_hw_ns,
+		uint64_t recv_ptp_ns);
 
 /**
  * nh_start_rx - start receiver thread
